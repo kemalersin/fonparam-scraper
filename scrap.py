@@ -227,7 +227,7 @@ try:
     connection = mysql.connector.connect(**db_config)
     
     if connection.is_connected():
-        print("MySQL veritabanına başarıyla bağlandı")
+        print("MySQL veritabanına başarıyla ba��landı")
         
         # Tabloları oluştur
         create_tables_if_not_exists(connection)
@@ -236,12 +236,33 @@ try:
         scraper = cloudscraper.create_scraper()
         
         # Şirket verilerini çek ve kaydet
-        companies = scraper.get("https://api.fintables.com/fund-management-companies/").json()
-        insert_companies(connection, companies)
+        try:
+            companies_response = scraper.get("https://api.fintables.com/fund-management-companies/")
+            companies = companies_response.json()
+            
+            if not isinstance(companies, list):
+                raise ValueError("Şirket verileri beklenen formatta değil (liste bekleniyor)")
+                
+            insert_companies(connection, companies)
+        except Exception as e:
+            print(f"Şirket verilerini çekerken hata oluştu: {e}")
+            raise
         
         # Fon getirilerini çek ve kaydet
-        yields_data = scraper.get("https://api.fintables.com/funds/yield/").json()
-        funds = insert_yields(connection, yields_data)
+        try:
+            yields_response = scraper.get("https://api.fintables.com/funds/yield/")
+            yields_data = yields_response.json()
+            
+            if not isinstance(yields_data, dict) or 'results' not in yields_data:
+                raise ValueError("Fon getirileri beklenen formatta değil (results anahtarı bulunamadı)")
+                
+            funds = insert_yields(connection, yields_data)
+            
+            if not funds:
+                raise ValueError("Fon verisi bulunamadı veya işlenemedi")
+        except Exception as e:
+            print(f"Fon getirilerini çekerken hata oluştu: {e}")
+            raise
         
         # Her bir fon için geçmiş değerleri çek ve kaydet
         for fund in funds:
@@ -258,7 +279,13 @@ try:
             print(f"Geçmiş değerler çekiliyor: {fund_code} - {start_date}")
             
             try:
-                historical_data = scraper.get(historical_url).json()
+                historical_response = scraper.get(historical_url)
+                historical_data = historical_response.json()
+                
+                if not isinstance(historical_data, dict) or 'results' not in historical_data or 'data' not in historical_data['results']:
+                    print(f"Geçmiş değerler beklenen formatta değil: {fund_code}")
+                    continue
+                    
                 insert_historical_values(connection, fund_code, historical_data)
             except Exception as e:
                 print(f"Geçmiş değer çekme hatası ({fund_code}): {e}")
@@ -266,6 +293,7 @@ try:
 
 except Error as e:
     print(f"MySQL bağlantı hatası: {e}")
+    raise
 
 finally:
     if 'connection' in locals() and connection.is_connected():
