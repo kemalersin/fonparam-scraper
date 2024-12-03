@@ -1,4 +1,4 @@
-# Fon Param Veri Toplayıcı
+# FonParam Veri Toplayıcı
 
 Bu proje, fintables.com API'sini kullanarak yatırım fonlarının verilerini toplar ve MySQL veritabanında saklar.
 
@@ -15,8 +15,8 @@ Bu proje, fintables.com API'sini kullanarak yatırım fonlarının verilerini to
 
 1. Projeyi klonlayın:
 ```bash
-git clone [repo-url]
-cd fonparam
+git clone https://github.com/kemalersin/fonparam-scraper.git
+cd fonparam-scraper
 ```
 
 2. Gerekli Python paketlerini yükleyin:
