@@ -326,13 +326,14 @@ class FundDataManager:
                 
     def get_last_date_for_fund(self, fund_code):
         """
-        Belirtilen fonun en son kaydedilen tarihini bulur
+        Belirtilen fonun en son kaydedilen tarihini bulur.
+        Eğer son kayıt bir aydan eskiyse veya bugünün verisi varsa None döner.
         
         Args:
             fund_code (str): Fon kodu
             
         Returns:
-            date: Bir sonraki güne ait tarih veya None (bugünün verisi varsa)
+            date: Bir sonraki güne ait tarih veya None (bugünün verisi varsa veya son kayıt bir aydan eskiyse)
         """
         try:
             cursor = self.db.connection.cursor()
@@ -344,10 +345,22 @@ class FundDataManager:
             result = cursor.fetchone()[0]
             
             if result:
-                if result == datetime.now().date():
+                today = datetime.now().date()
+                one_month_ago = today - timedelta(days=30)
+                
+                # Eğer son kayıt bir aydan eskiyse, None döndür
+                if result < one_month_ago:
+                    print(f"Atlanan fon (son kayıt bir aydan eski): {fund_code} - Son kayıt: {result}")
                     return None
+                    
+                # Eğer son tarih bugünse None döndür (güncelleme gerekmez)
+                if result == today:
+                    return None
+                    
+                # Son tarihten bir gün sonrasını döndür
                 return result + timedelta(days=1)
             else:
+                # 5 yıl öncesinin tarihini döndür
                 return datetime.now().date() - timedelta(days=5*365)
                 
         except Error as e:
