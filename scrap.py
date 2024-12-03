@@ -4,6 +4,9 @@ from mysql.connector import Error
 from datetime import datetime, timedelta
 from dotenv import load_dotenv
 import os
+import requests
+from pathlib import Path
+import hashlib
 
 # .env dosyasını yükle
 load_dotenv()
@@ -17,6 +20,42 @@ db_config = {
     'charset': os.getenv('DB_CHARSET'),
     'collation': os.getenv('DB_COLLATION')
 }
+
+# Public dizini yolu
+PUBLIC_PATH = os.getenv('PUBLIC_PATH')
+
+def download_and_save_logo(logo_url):
+    if not logo_url:
+        return None
+        
+    try:
+        # Public dizininin varlığını kontrol et ve oluştur
+        logo_dir = Path(PUBLIC_PATH) / 'logos'
+        logo_dir.mkdir(parents=True, exist_ok=True)
+        
+        # URL'den orijinal dosya adını al
+        original_filename = Path(logo_url).name
+        file_path = logo_dir / original_filename
+        
+        # Eğer dosya zaten varsa, direkt yolu döndür
+        if file_path.exists():
+            print(f"Logo zaten mevcut: {original_filename}")
+            return f"/logos/{original_filename}"
+            
+        # Logo dosyasını indir
+        response = requests.get(logo_url)
+        response.raise_for_status()
+        
+        # Dosyayı kaydet
+        with open(file_path, 'wb') as f:
+            f.write(response.content)
+            
+        print(f"Logo başarıyla indirildi ve kaydedildi: {original_filename}")
+        return f"/logos/{original_filename}"
+        
+    except Exception as e:
+        print(f"Logo indirme hatası ({logo_url}): {e}")
+        return None
 
 def create_tables_if_not_exists(connection):
     try:
@@ -126,7 +165,10 @@ def insert_companies(connection, companies):
         logo = VALUES(logo)
         """
         for company in companies:
-            values = (company['code'], company['title'], company['logo'])
+            # Logo'yu indir ve kaydet
+            logo_path = download_and_save_logo(company['logo'])
+            
+            values = (company['code'], company['title'], logo_path)
             cursor.execute(insert_query, values)
         
         connection.commit()
