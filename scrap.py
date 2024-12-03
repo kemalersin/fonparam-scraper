@@ -6,7 +6,6 @@ from dotenv import load_dotenv
 import os
 import requests
 from pathlib import Path
-import hashlib
 
 # .env dosyasını yükle
 load_dotenv()
