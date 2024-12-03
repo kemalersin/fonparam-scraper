@@ -37,10 +37,10 @@ def download_and_save_logo(logo_url):
         original_filename = Path(logo_url).name
         file_path = logo_dir / original_filename
         
-        # Eğer dosya zaten varsa, direkt yolu döndür
+        # Eğer dosya zaten varsa, direkt dosya adını döndür
         if file_path.exists():
             print(f"Logo zaten mevcut: {original_filename}")
-            return f"/logos/{original_filename}"
+            return original_filename
             
         # Logo dosyasını indir
         response = requests.get(logo_url)
@@ -51,7 +51,7 @@ def download_and_save_logo(logo_url):
             f.write(response.content)
             
         print(f"Logo başarıyla indirildi ve kaydedildi: {original_filename}")
-        return f"/logos/{original_filename}"
+        return original_filename
         
     except Exception as e:
         print(f"Logo indirme hatası ({logo_url}): {e}")
@@ -165,10 +165,10 @@ def insert_companies(connection, companies):
         logo = VALUES(logo)
         """
         for company in companies:
-            # Logo'yu indir ve kaydet
-            logo_path = download_and_save_logo(company['logo'])
+            # Logo'yu indir ve kaydet, sadece dosya adını al
+            logo_filename = download_and_save_logo(company['logo'])
             
-            values = (company['code'], company['title'], logo_path)
+            values = (company['code'], company['title'], logo_filename)
             cursor.execute(insert_query, values)
         
         connection.commit()
