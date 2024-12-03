@@ -241,7 +241,7 @@ try:
         insert_companies(connection, companies)
         
         # Fon getirilerini çek ve kaydet
-        yields_data = scraper.get("https://api.fintables.com/funds/yield/?filter=%5B%7B%22type%22%3A%22tefas%22%2C%22value%22%3A%221%22%7D%5D").json()
+        yields_data = scraper.get("https://api.fintables.com/funds/yield/").json()
         funds = insert_yields(connection, yields_data)
         
         # Her bir fon için geçmiş değerleri çek ve kaydet
@@ -255,7 +255,7 @@ try:
                 continue
             
             # Geçmiş değerleri çek
-            historical_url = f"https://api.fintables.com/funds/{fund_code}/chart/?start_date={start_date.strftime('%Y-%m-%d')}&compare="
+            historical_url = f"https://api.fintables.com/funds/{fund_code}/chart/?start_date={start_date.strftime('%Y-%m-%d')}"
             print(f"Geçmiş değerler çekiliyor: {fund_code} - {start_date}")
             
             try:
