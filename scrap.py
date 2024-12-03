@@ -8,7 +8,10 @@ import requests
 from pathlib import Path
 
 class FonParamDB:
+    """Veritabanı işlemlerini yöneten sınıf"""
+    
     def __init__(self):
+        # .env dosyasından veritabanı yapılandırma bilgilerini yükle
         load_dotenv()
         self.db_config = {
             'host': os.getenv('DB_HOST'),
@@ -84,10 +87,22 @@ class FonParamDB:
             print(f"Tablo oluşturma hatası: {e}")
 
 class LogoManager:
+    """Şirket logolarını indirme ve yönetme işlemlerini yapan sınıf"""
+    
     def __init__(self):
+        # Logo dosyalarının kaydedileceği dizin
         self.public_path = os.getenv('PUBLIC_PATH')
         
     def download_and_save(self, logo_url):
+        """
+        Verilen URL'den logo dosyasını indirir ve kaydeder
+        
+        Args:
+            logo_url (str): İndirilecek logonun URL'i
+            
+        Returns:
+            str: Kaydedilen dosyanın adı veya None (hata durumunda)
+        """
         if not logo_url:
             return None
             
@@ -116,11 +131,24 @@ class LogoManager:
             return None
 
 class FintablesAPI:
+    """Fintables API ile iletişimi sağlayan sınıf"""
+    
     def __init__(self):
+        # Cloudflare korumalı sitelere erişim için özel scraper oluştur
         self.scraper = cloudscraper.create_scraper()
         self.base_url = "https://api.fintables.com"
         
     def get_companies(self):
+        """
+        Fon yönetim şirketlerinin listesini çeker
+        
+        Returns:
+            list: Şirket bilgilerini içeren liste
+            
+        Raises:
+            ValueError: API yanıtı beklenen formatta değilse
+            Exception: API isteği başarısız olursa
+        """
         try:
             response = self.scraper.get(f"{self.base_url}/fund-management-companies/")
             companies = response.json()
@@ -161,30 +189,45 @@ class FintablesAPI:
             raise
 
 class FundDataManager:
+    """Ana iş mantığını yöneten sınıf"""
+    
     def __init__(self):
+        # Gerekli servislerin örneklerini oluştur
         self.db = FonParamDB()
         self.api = FintablesAPI()
         self.logo_manager = LogoManager()
         
     def run(self):
+        """
+        Ana veri toplama işlemini başlatır:
+        1. Şirket verilerini çeker ve kaydeder
+        2. Fon getirilerini çeker ve kaydeder
+        3. Her fonun geçmiş değerlerini çeker ve kaydeder
+        """
         try:
             self.db.connect()
             
-            # Şirket verilerini çek ve kaydet
+            # 1. Şirket verilerini çek ve kaydet
             companies = self.api.get_companies()
             self.insert_companies(companies)
             
-            # Fon getirilerini çek ve kaydet
+            # 2. Fon getirilerini çek ve kaydet
             yields_data = self.api.get_yields()
             funds = self.insert_yields(yields_data)
             
-            # Geçmiş değerleri çek ve kaydet
+            # 3. Geçmiş değerleri çek ve kaydet
             self.process_historical_values(funds)
             
         finally:
             self.db.close()
             
     def insert_companies(self, companies):
+        """
+        Şirket verilerini veritabanına kaydeder ve logolarını indirir
+        
+        Args:
+            companies (list): Şirket bilgilerini içeren liste
+        """
         try:
             cursor = self.db.connection.cursor()
             insert_query = """
@@ -205,6 +248,15 @@ class FundDataManager:
             print(f"Şirket verisi ekleme hatası: {e}")
             
     def insert_yields(self, yields_data):
+        """
+        Fon getiri verilerini veritabanına kaydeder
+        
+        Args:
+            yields_data (dict): Fon getiri bilgilerini içeren sözlük
+            
+        Returns:
+            list: İşlenen fonların listesi
+        """
         try:
             cursor = self.db.connection.cursor()
             insert_query = """
@@ -252,6 +304,12 @@ class FundDataManager:
             return []
             
     def process_historical_values(self, funds):
+        """
+        Her bir fon için geçmiş değerleri işler
+        
+        Args:
+            funds (list): İşlenecek fonların listesi
+        """
         for fund in funds:
             fund_code = fund['code']
             start_date = self.get_last_date_for_fund(fund_code)
@@ -267,6 +325,15 @@ class FundDataManager:
                 continue
                 
     def get_last_date_for_fund(self, fund_code):
+        """
+        Belirtilen fonun en son kaydedilen tarihini bulur
+        
+        Args:
+            fund_code (str): Fon kodu
+            
+        Returns:
+            date: Bir sonraki güne ait tarih veya None (bugünün verisi varsa)
+        """
         try:
             cursor = self.db.connection.cursor()
             query = """
@@ -288,6 +355,13 @@ class FundDataManager:
             return datetime.now().date() - timedelta(days=5*365)
             
     def insert_historical_values(self, fund_code, historical_data):
+        """
+        Fonun geçmiş değerlerini veritabanına kaydeder
+        
+        Args:
+            fund_code (str): Fon kodu
+            historical_data (dict): Geçmiş değer verileri
+        """
         try:
             cursor = self.db.connection.cursor()
             insert_query = """
@@ -312,5 +386,6 @@ class FundDataManager:
             print(f"Geçmiş değer verisi ekleme hatası ({fund_code}): {e}")
 
 if __name__ == "__main__":
+    # Ana yönetici sınıfını başlat ve çalıştır
     manager = FundDataManager()
     manager.run()
